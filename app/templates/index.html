@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}sh4r3d — Share files{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h1>Share files instantly</h1>
+  <p class="subtitle">Pick a short name. Anyone you tell it to can upload files — no account needed. Everything disappears after 24 hours.</p>
+
+  <div id="form-error" class="alert alert-error" style="display:none"></div>
+
+  <div style="margin-bottom:1.25rem">
+    <label for="slug-input">Your share name</label>
+    <div style="display:flex;gap:0.6rem;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:0">
+        <input
+          class="input"
+          type="text"
+          id="slug-input"
+          placeholder="e.g. blue-cat-7"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          maxlength="64"
+        >
+        <p class="field-hint" id="slug-hint">Lowercase letters, numbers, and hyphens. 3–64 characters.</p>
+        <p class="field-error" id="slug-error"></p>
+      </div>
+      <button class="btn btn-primary" id="create-btn" disabled>Create link</button>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem">
+    <p style="font-size:0.85rem;color:var(--muted)">
+      Your share link will look like:
+      <code style="color:var(--accent);font-size:0.85rem" id="link-preview">…/share/<em>your-name</em></code>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SLUG_RE = /^[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]$/;
+
+  const slugInput = document.getElementById("slug-input");
+  const createBtn = document.getElementById("create-btn");
+  const slugError = document.getElementById("slug-error");
+  const slugHint  = document.getElementById("slug-hint");
+  const preview   = document.getElementById("link-preview");
+  const formError = document.getElementById("form-error");
+
+  function validateSlug(value) {
+    if (!value) return null;
+    if (value.length < 3) return "Too short — minimum 3 characters.";
+    if (!/^[a-z0-9\-]+$/.test(value)) return "Only lowercase letters, numbers, and hyphens allowed.";
+    if (value.startsWith("-") || value.endsWith("-")) return "Cannot start or end with a hyphen.";
+    return null; // valid
+  }
+
+  slugInput.addEventListener("input", () => {
+    const v = slugInput.value;
+    const err = validateSlug(v);
+    if (err) {
+      slugError.textContent = err;
+      slugError.style.display = "block";
+      slugHint.style.display  = "none";
+      slugInput.classList.add("error");
+      createBtn.disabled = true;
+    } else if (v.length > 0) {
+      slugError.style.display = "none";
+      slugHint.style.display  = "block";
+      slugInput.classList.remove("error");
+      createBtn.disabled = false;
+    } else {
+      slugError.style.display = "none";
+      slugHint.style.display  = "block";
+      slugInput.classList.remove("error");
+      createBtn.disabled = true;
+    }
+    preview.innerHTML = v
+      ? `/share/<strong>${v}</strong>`
+      : `/share/<em>your-name</em>`;
+  });
+
+  createBtn.addEventListener("click", async () => {
+    const slug = slugInput.value.trim();
+    formError.style.display = "none";
+    createBtn.disabled = true;
+    createBtn.textContent = "Creating…";
+
+    try {
+      const res = await fetch("/api/slugs", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({slug}),
+      });
+      if (res.ok) {
+        window.location.href = `/share/${slug}`;
+        return;
+      }
+      const data = await res.json();
+      if (res.status === 409) {
+        formError.textContent = "That name is already taken — try a different one.";
+      } else {
+        formError.textContent = data.detail || "Something went wrong.";
+      }
+      formError.style.display = "block";
+    } catch (e) {
+      formError.textContent = "Network error — please try again.";
+      formError.style.display = "block";
+    }
+
+    createBtn.disabled = false;
+    createBtn.textContent = "Create link";
+  });
+
+  slugInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !createBtn.disabled) createBtn.click();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sh4r3d — Sign in</title>
+  <meta name="description" content="Sign in to sh4r3d with your invite token to create instant file-sharing links.">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="site-logo">sh<span>4</span>r3d</a>
+    <nav class="site-nav"></nav>
+  </header>
+  <main class="container">
+    <div class="card" style="max-width:420px;margin:0 auto">
+      <h1 style="font-size:1.3rem;margin-bottom:0.3rem">Beta access</h1>
+      <p class="subtitle">Enter your invite token to continue.</p>
+
+      <div id="error-msg" class="alert alert-error" style="display:none"></div>
+
+      <label for="token-input">Invite token</label>
+      <input
+        class="input"
+        type="text"
+        id="token-input"
+        placeholder="Paste your token here"
+        autocomplete="off"
+        spellcheck="false"
+      >
+
+      <button
+        class="btn btn-primary"
+        id="submit-btn"
+        onclick="doLogin()"
+        style="margin-top:1rem;width:100%;justify-content:center"
+      >Continue</button>
+    </div>
+  </main>
+
+  <footer style="margin-top:2.5rem;color:var(--muted);font-size:0.8rem">
+    <a href="/privacy" style="color:var(--muted);text-decoration:none">Privacy policy</a>
+  </footer>
+
+  <script>
+    // Redirect away if already authenticated
+    fetch('/api/auth/status').then(r => r.json()).then(({authenticated, beta_mode}) => {
+      if (!beta_mode || authenticated) {
+        const next = new URLSearchParams(window.location.search).get('next') || '/';
+        window.location.href = next;
+      }
+    });
+
+    document.getElementById('token-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+      const token = document.getElementById('token-input').value.trim();
+      const btn = document.getElementById('submit-btn');
+      const errEl = document.getElementById('error-msg');
+
+      if (!token) return;
+      btn.disabled = true;
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({token}),
+        });
+        if (res.ok) {
+          const next = new URLSearchParams(window.location.search).get('next') || '/';
+          window.location.href = next;
+        } else {
+          errEl.textContent = 'Invalid token. Please check your invite and try again.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+        }
+      } catch {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

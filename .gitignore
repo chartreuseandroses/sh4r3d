@@ -1,0 +1,28 @@
+# ── Local dev ────────────────────────────────────────────────────────────────
+uploads/
+sh4r3d.db
+.env
+.claude/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+.venv/
+venv/
+env/
+
+# ── Lambda build artifacts ───────────────────────────────────────────────────
+build/
+*.zip
+
+# ── Terraform ────────────────────────────────────────────────────────────────
+.terraform/
+*.tfstate
+*.tfstate.backup
+terraform.tfvars

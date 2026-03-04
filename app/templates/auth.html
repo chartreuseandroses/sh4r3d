@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sh4r3d — Beta Access</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2f45;
+      --accent: #6c63ff;
+      --accent-hover: #857dff;
+      --text: #e8eaf0;
+      --muted: #7b82a0;
+      --danger: #e05555;
+      --radius: 10px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 2rem;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+      margin-bottom: 0.25rem;
+    }
+    .logo span { color: var(--text); }
+    .tagline {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    .input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 1rem;
+      padding: 0.65rem 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: monospace;
+      letter-spacing: 0.05em;
+    }
+    .input:focus { border-color: var(--accent); }
+    .input.error { border-color: var(--danger); }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.7rem 1.4rem;
+      border-radius: 7px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      margin-top: 1rem;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .alert-error {
+      background: rgba(224,85,85,0.12);
+      border: 1px solid rgba(224,85,85,0.35);
+      color: #f08080;
+      border-radius: 7px;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.875rem;
+      margin-bottom: 1.25rem;
+    }
+    .beta-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">sh<span>4</span>r3d</div>
+    <p class="tagline">Beta — invite only</p>
+
+    {% if error %}
+    <div class="alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/auth">
+      <label for="token">Beta access token</label>
+      <input
+        class="input {% if error %}error{% endif %}"
+        type="text"
+        id="token"
+        name="token"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="Paste your token here"
+        autofocus
+      >
+      <button type="submit" class="btn">Enter</button>
+    </form>
+
+    <p class="beta-note">Don't have a token? Ask the developer for an invite.</p>
+  </div>
+</body>
+</html>

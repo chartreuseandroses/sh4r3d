@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>sh4r3d — Instant file sharing</title>
+  <meta name="description" content="Share files instantly with a short link. Anyone with the link can upload and download for 24 hours. Files are deleted automatically — no account required.">
+  <meta property="og:title" content="sh4r3d — Instant file sharing">
+  <meta property="og:description" content="Share files instantly with a short link. Anyone with the link can upload and download for 24 hours. Files are deleted automatically — no account required.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://${domain}/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="sh4r3d — Instant file sharing">
+  <meta name="twitter:description" content="Share files instantly with a short link. Anyone with the link can upload and download for 24 hours. Files are deleted automatically — no account required.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a href="/" class="site-logo">sh<span>4</span>r3d</a>
+    <nav class="site-nav" id="site-nav"></nav>
+  </header>
+  <main class="container">
+    <div class="card">
+      <h1>Share files instantly</h1>
+      <p class="subtitle">Pick a short slug to get a shareable link. Anyone with the link can upload and download files for 24 hours.</p>
+
+      <label for="slug-input">Your slug</label>
+      <input
+        class="input"
+        type="text"
+        id="slug-input"
+        placeholder="blue-cat-7"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <p class="field-hint" id="slug-hint">Lowercase letters, numbers, and hyphens. 3–64 characters.</p>
+      <p class="field-error" id="slug-error"></p>
+
+      <div style="margin-top:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-primary" id="create-btn" disabled onclick="createSlug()">Create link</button>
+        <span id="preview-url" style="font-size:0.85rem;color:var(--muted)"></span>
+      </div>
+
+      <div id="create-error" class="alert alert-error" style="display:none;margin-top:1rem"></div>
+    </div>
+  </main>
+
+  <footer style="margin-top:2.5rem;color:var(--muted);font-size:0.8rem">
+    <a href="/privacy" style="color:var(--muted);text-decoration:none">Privacy policy</a>
+  </footer>
+
+  <script>
+    const SLUG_RE = /^[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]$/;
+
+    // Check auth on load
+    fetch('/api/auth/status').then(r => r.json()).then(({authenticated, beta_mode}) => {
+      if (beta_mode && !authenticated) {
+        window.location.href = '/auth';
+        return;
+      }
+      if (beta_mode) {
+        document.getElementById('site-nav').innerHTML = '<a href="#" onclick="signOut()">Sign out</a>';
+      }
+    });
+
+    function signOut() {
+      fetch('/api/auth/logout', {method: 'POST'}).then(() => {
+        window.location.href = '/auth';
+      });
+    }
+
+    const slugInput = document.getElementById('slug-input');
+    const createBtn = document.getElementById('create-btn');
+    const slugError = document.getElementById('slug-error');
+    const previewUrl = document.getElementById('preview-url');
+
+    slugInput.addEventListener('input', () => {
+      const val = slugInput.value.trim();
+      if (!val) {
+        slugInput.classList.remove('error');
+        slugError.style.display = 'none';
+        createBtn.disabled = true;
+        previewUrl.textContent = '';
+        return;
+      }
+      if (SLUG_RE.test(val)) {
+        slugInput.classList.remove('error');
+        slugError.style.display = 'none';
+        createBtn.disabled = false;
+        previewUrl.textContent = `$${window.location.origin}/$${val}`;
+      } else {
+        slugInput.classList.add('error');
+        slugError.textContent = 'Lowercase letters, numbers, hyphens only. No leading/trailing hyphens. 3–64 chars.';
+        slugError.style.display = 'block';
+        createBtn.disabled = true;
+        previewUrl.textContent = '';
+      }
+    });
+
+    slugInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !createBtn.disabled) createSlug();
+    });
+
+    async function createSlug() {
+      const slug = slugInput.value.trim();
+      createBtn.disabled = true;
+      document.getElementById('create-error').style.display = 'none';
+
+      try {
+        const res = await fetch('/api/slugs', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({slug}),
+        });
+        if (res.status === 201) {
+          window.location.href = `/$${slug}`;
+        } else {
+          const body = await res.json().catch(() => ({}));
+          const errEl = document.getElementById('create-error');
+          errEl.textContent = body.detail || `Error $${res.status}`;
+          errEl.style.display = 'block';
+          createBtn.disabled = false;
+        }
+      } catch {
+        const errEl = document.getElementById('create-error');
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+        createBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is excluded from version control (.gitignore).
+
+# Your domain name — CloudFront and the ACM certificate will be configured
+# for this domain and www.<domain>.
+domain = "example.com"
+
+# Secret key used to sign session cookies. Must be a long random string.
+# Generate one with:  python -c "import secrets; print(secrets.token_hex(32))"
+secret_key = "replace-with-a-long-random-string"
+
+# Set to "true" to require an invite token before anyone can use the app.
+# beta_mode = "false"

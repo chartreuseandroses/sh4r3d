@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}sh4r3d — {{ slug }}{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.25rem">
+  <h1 style="margin-bottom:0.25rem">{{ slug }}</h1>
+  <p class="subtitle" id="expiry-text">Loading expiry…</p>
+
+  <label>Share link</label>
+  <div style="display:flex;gap:0.6rem;align-items:center">
+    <input class="input" type="text" id="share-url" readonly style="flex:1;cursor:pointer;color:var(--accent)">
+    <button class="btn btn-ghost" id="copy-btn" onclick="copyLink()">Copy</button>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1.25rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+    <span style="font-size:0.875rem;font-weight:600">Storage</span>
+    <span id="storage-text" style="font-size:0.85rem;color:var(--muted)">—</span>
+  </div>
+  <div class="progress-bar-track">
+    <div class="progress-bar-fill" id="storage-bar"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h1 style="font-size:1.2rem;margin-bottom:1.25rem">Upload files</h1>
+
+  <div
+    id="drop-zone"
+    style="
+      border:2px dashed var(--border);
+      border-radius:var(--radius);
+      padding:2.5rem 1.5rem;
+      text-align:center;
+      cursor:pointer;
+      transition:border-color 0.15s,background 0.15s;
+      margin-bottom:1.5rem;
+    "
+  >
+    <div style="font-size:2rem;margin-bottom:0.5rem">&#x2601;&#xfe0f;</div>
+    <p style="color:var(--muted);font-size:0.9rem">Drag files here or <span style="color:var(--accent);text-decoration:underline;cursor:pointer">browse</span></p>
+    <input type="file" id="file-input" multiple style="display:none">
+  </div>
+
+  <div id="upload-status" style="display:none;margin-bottom:1rem">
+    <p id="upload-filename" style="font-size:0.875rem;color:var(--muted);margin-bottom:0.3rem"></p>
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="upload-bar"></div>
+    </div>
+    <p id="upload-msg" style="font-size:0.8rem;color:var(--muted);margin-top:0.3rem"></p>
+  </div>
+
+  <div id="upload-error" class="alert alert-error" style="display:none"></div>
+
+  <hr class="divider">
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <span style="font-size:0.875rem;font-weight:600">Files</span>
+    <span id="file-count" style="font-size:0.8rem;color:var(--muted)"></span>
+  </div>
+
+  <div id="file-list">
+    <p style="color:var(--muted);font-size:0.875rem;text-align:center;padding:1rem 0">No files yet.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const SLUG     = {{ slug | tojson }};
+  const EXPIRES  = {{ info.expires_at }};
+  const MAX_BYTES = 500 * 1024 * 1024;
+
+  // Set share URL
+  const shareUrl = `${window.location.origin}/share/${SLUG}`;
+  document.getElementById("share-url").value = shareUrl;
+
+  function copyLink() {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      const btn = document.getElementById("copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = "Copy", 2000);
+    });
+  }
+
+  // Expiry countdown
+  function updateExpiry() {
+    const diff = Math.max(0, EXPIRES - Date.now() / 1000);
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const el = document.getElementById("expiry-text");
+    if (diff === 0) {
+      el.textContent = "Expired";
+    } else {
+      el.textContent = `Expires in ${h}h ${m}m`;
+    }
+  }
+  updateExpiry();
+  setInterval(updateExpiry, 60000);
+
+  // Human-readable file size
+  function fmtBytes(b) {
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  // Render file list
+  function renderFiles(files, storageUsed) {
+    const listEl = document.getElementById("file-list");
+    const countEl = document.getElementById("file-count");
+    const barEl = document.getElementById("storage-bar");
+    const storageEl = document.getElementById("storage-text");
+
+    const pct = Math.min(100, (storageUsed / MAX_BYTES) * 100);
+    barEl.style.width = `${pct.toFixed(1)}%`;
+    barEl.classList.toggle("full", pct >= 95);
+    storageEl.textContent = `${fmtBytes(storageUsed)} / 500 MB`;
+
+    countEl.textContent = files.length === 1 ? "1 file" : `${files.length} files`;
+
+    if (!files.length) {
+      listEl.innerHTML = `<p style="color:var(--muted);font-size:0.875rem;text-align:center;padding:1rem 0">No files yet.</p>`;
+      return;
+    }
+
+    listEl.innerHTML = files.map(f => `
+      <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid var(--border)" data-file-id="${f.id}">
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(f.original_name)}">${escHtml(f.original_name)}</p>
+          <p style="font-size:0.775rem;color:var(--muted);margin-top:0.15rem">${fmtBytes(f.size_bytes)}</p>
+          ${f.md5 ? `<p class="md5-hash" style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem;font-family:monospace;cursor:pointer" title="Click to copy MD5" onclick="copyMd5('${f.md5}', this)">MD5: ${f.md5}</p>` : ""}
+        </div>
+        <a class="btn btn-ghost" href="/api/slugs/${SLUG}/files/${f.id}/download">Download</a>
+        <button class="btn btn-danger" onclick="deleteFile(${f.id}, this)">Delete</button>
+      </div>
+    `).join("");
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  function copyMd5(hash, el) {
+    navigator.clipboard.writeText(hash).then(() => {
+      const orig = el.textContent;
+      el.textContent = "Copied!";
+      setTimeout(() => { el.textContent = orig; }, 2000);
+    });
+  }
+
+  // Load file list from API
+  async function refreshFiles() {
+    try {
+      const res = await fetch(`/api/slugs/${SLUG}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderFiles(data.files, data.storage_used_bytes);
+    } catch {}
+  }
+
+  refreshFiles();
+  setInterval(refreshFiles, 30000);
+
+  // Delete a file
+  async function deleteFile(fileId, btn) {
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/slugs/${SLUG}/files/${fileId}`, {method: "DELETE"});
+      if (res.ok || res.status === 204) {
+        await refreshFiles();
+      }
+    } catch {
+      btn.disabled = false;
+    }
+  }
+
+  // Upload a file
+  async function uploadFile(file) {
+    const statusEl  = document.getElementById("upload-status");
+    const barEl     = document.getElementById("upload-bar");
+    const msgEl     = document.getElementById("upload-msg");
+    const nameEl    = document.getElementById("upload-filename");
+    const errorEl   = document.getElementById("upload-error");
+
+    errorEl.style.display  = "none";
+    statusEl.style.display = "block";
+    nameEl.textContent     = `Uploading: ${file.name}`;
+    barEl.style.width      = "0%";
+    msgEl.textContent      = "";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    await new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const pct = (e.loaded / e.total * 100).toFixed(1);
+          barEl.style.width = `${pct}%`;
+          msgEl.textContent = `${fmtBytes(e.loaded)} / ${fmtBytes(e.total)}`;
+        }
+      });
+
+      xhr.addEventListener("load", async () => {
+        if (xhr.status === 201) {
+          barEl.style.width = "100%";
+          msgEl.textContent = "Done!";
+          await refreshFiles();
+          setTimeout(() => { statusEl.style.display = "none"; }, 1500);
+        } else {
+          statusEl.style.display = "none";
+          let detail = `Upload failed (HTTP ${xhr.status}).`;
+          try {
+            const body = JSON.parse(xhr.responseText);
+            if (body.detail) {
+              detail = typeof body.detail === "string"
+                ? body.detail
+                : JSON.stringify(body.detail);
+            }
+          } catch {}
+          errorEl.textContent = detail;
+          errorEl.style.display = "block";
+        }
+        resolve();
+      });
+
+      xhr.addEventListener("error", () => {
+        statusEl.style.display = "none";
+        errorEl.textContent = "Network error during upload.";
+        errorEl.style.display = "block";
+        resolve();
+      });
+
+      xhr.open("POST", `/api/slugs/${SLUG}/files`);
+      xhr.send(formData);
+    });
+  }
+
+  // Serial queue for multiple files
+  async function uploadFiles(files) {
+    for (const file of files) {
+      await uploadFile(file);
+    }
+  }
+
+  // Drop zone
+  const dropZone  = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--accent)";
+    dropZone.style.background  = "rgba(108,99,255,0.06)";
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.style.borderColor = "var(--border)";
+    dropZone.style.background  = "";
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.style.borderColor = "var(--border)";
+    dropZone.style.background  = "";
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) uploadFiles(files);
+  });
+
+  dropZone.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const files = Array.from(fileInput.files);
+    if (files.length) uploadFiles(files);
+    fileInput.value = "";
+  });
+</script>
+{% endblock %}
