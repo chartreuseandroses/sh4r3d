@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sh4r3d</title>
   <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -31,6 +32,35 @@
       </div>
       <div class="progress-bar-track">
         <div class="progress-bar-fill" id="storage-bar"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <h1 style="font-size:1.2rem;margin-bottom:0.5rem">Share a note</h1>
+      <p class="subtitle" style="margin-bottom:1rem">Paste text or a URL. URLs automatically show a link preview.</p>
+
+      <textarea
+        id="note-input"
+        class="input"
+        rows="3"
+        placeholder="Type something, or paste a URL…"
+        style="resize:vertical;font-family:inherit"
+      ></textarea>
+
+      <div style="margin-top:0.6rem;display:flex;gap:0.6rem;align-items:center">
+        <button class="btn btn-primary" id="note-btn" onclick="submitNote()">Share</button>
+        <span id="note-hint" style="font-size:0.8rem;color:var(--muted)"></span>
+      </div>
+
+      <div id="note-error" class="alert alert-error" style="display:none;margin-top:0.75rem"></div>
+
+      <div id="notes-section" style="display:none">
+        <hr class="divider">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <span style="font-size:0.875rem;font-weight:600">Notes</span>
+          <span id="note-count" style="font-size:0.8rem;color:var(--muted)"></span>
+        </div>
+        <div id="note-list"></div>
       </div>
     </div>
 
@@ -105,7 +135,18 @@
       document.title = `sh4r3d — ${SLUG}`;
 
       await refreshFiles();
-      setInterval(refreshFiles, 30000);
+
+      // Poll every 3s while the tab is visible, 30s when hidden
+      let pollTimer;
+      function schedulePoll() {
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(async () => {
+          await refreshFiles();
+          schedulePoll();
+        }, document.hidden ? 30000 : 3000);
+      }
+      schedulePoll();
+      document.addEventListener('visibilitychange', schedulePoll);
     }
 
     function signOut() {
@@ -141,6 +182,40 @@
       return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','avif','svg','bmp']);
+    const VIDEO_EXTS = new Set(['mp4','webm','ogg','mov']);
+
+    function mediaType(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      if (IMAGE_EXTS.has(ext)) return 'image';
+      if (VIDEO_EXTS.has(ext)) return 'video';
+      return null;
+    }
+
+    function mediaEmbed(f) {
+      const type = mediaType(f.original_name);
+      if (!type) return '';
+      const src = `/api/slugs/${SLUG}/files/${f.id}/download`;
+      if (type === 'image') {
+        return `<div class="media-embed"><img src="${src}" alt="${escHtml(f.original_name)}" loading="lazy"></div>`;
+      }
+      // Videos: src is set asynchronously via loadVideoSources() to avoid iOS redirect issues
+      return `<div class="media-embed media-embed-video"><video data-file-id="${f.id}" controls playsinline preload="metadata"></video></div>`;
+    }
+
+    async function loadVideoSources() {
+      const videos = document.querySelectorAll('video[data-file-id]');
+      for (const el of videos) {
+        if (el.src) continue; // already resolved
+        const fileId = el.dataset.fileId;
+        try {
+          const res = await fetch(`/api/slugs/${SLUG}/files/${fileId}/download?direct=1`);
+          const { url } = await res.json();
+          el.src = url;
+        } catch {}
+      }
+    }
+
     function copyMd5(hash, el) {
       navigator.clipboard.writeText(hash).then(() => {
         const orig = el.textContent;
@@ -168,17 +243,23 @@
       }
 
       listEl.innerHTML = files.map(f => `
-        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid var(--border)" data-file-id="${f.id}">
-          <div style="flex:1;min-width:0">
-            <p style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(f.original_name)}">${escHtml(f.original_name)}</p>
-            <p style="font-size:0.775rem;color:var(--muted);margin-top:0.15rem">${fmtBytes(f.size_bytes)}</p>
-            ${f.md5 ? `<p class="md5-hash" style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem;font-family:monospace;cursor:pointer" title="Click to copy MD5" onclick="copyMd5('${f.md5}', this)">MD5: ${f.md5}</p>` : ''}
+        <div style="padding:0.7rem 0;border-bottom:1px solid var(--border)" data-file-id="${f.id}">
+          <div style="display:flex;align-items:flex-start;gap:0.75rem">
+            <div style="flex:1;min-width:0">
+              <p style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(f.original_name)}">${escHtml(f.original_name)}</p>
+              <p style="font-size:0.775rem;color:var(--muted);margin-top:0.15rem">${fmtBytes(f.size_bytes)}</p>
+              ${f.md5 ? `<p class="md5-hash" style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem;font-family:monospace;cursor:pointer" title="Click to copy MD5" onclick="copyMd5('${f.md5}', this)">MD5: ${f.md5}</p>` : ''}
+            </div>
+            <a class="btn btn-ghost" href="/api/slugs/${SLUG}/files/${f.id}/download">Download</a>
+            <button class="btn btn-danger" onclick="deleteFile('${f.id}', this)">Delete</button>
           </div>
-          <a class="btn btn-ghost" href="/api/slugs/${SLUG}/files/${f.id}/download">Download</a>
-          <button class="btn btn-danger" onclick="deleteFile('${f.id}', this)">Delete</button>
+          ${mediaEmbed(f)}
         </div>
       `).join('');
     }
+
+    let lastFilesJson = null;
+    let lastNotesJson = null;
 
     async function refreshFiles() {
       try {
@@ -194,7 +275,20 @@
           updateExpiry();
           setInterval(updateExpiry, 60000);
         }
-        renderFiles(data.files, data.storage_used_bytes);
+
+        // Only re-render if data changed — avoids destroying <video> elements mid-playback
+        const filesJson = JSON.stringify(data.files);
+        if (filesJson !== lastFilesJson) {
+          lastFilesJson = filesJson;
+          renderFiles(data.files, data.storage_used_bytes);
+          loadVideoSources();
+        }
+
+        const notesJson = JSON.stringify(data.notes);
+        if (notesJson !== lastNotesJson) {
+          lastNotesJson = notesJson;
+          renderNotes(data.notes || []);
+        }
       } catch {}
     }
 
@@ -302,6 +396,110 @@
     async function uploadFiles(files) {
       for (const file of files) {
         await uploadFile(file);
+      }
+    }
+
+    // Notes
+    const URL_RE = /^https?:\/\//i;
+
+    document.getElementById('note-input').addEventListener('input', function() {
+      const hint = document.getElementById('note-hint');
+      hint.textContent = URL_RE.test(this.value.trim()) ? 'URL detected — a link preview will be fetched.' : '';
+    });
+
+    async function submitNote() {
+      const input = document.getElementById('note-input');
+      const btn   = document.getElementById('note-btn');
+      const errEl = document.getElementById('note-error');
+      const content = input.value.trim();
+      if (!content) return;
+
+      btn.disabled = true;
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch(`/api/slugs/${SLUG}/notes`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({content}),
+        });
+        if (res.status === 201) {
+          input.value = '';
+          document.getElementById('note-hint').textContent = '';
+          await refreshFiles();
+        } else {
+          const body = await res.json().catch(() => ({}));
+          errEl.textContent = body.detail || `Error ${res.status}`;
+          errEl.style.display = 'block';
+        }
+      } catch {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('note-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitNote();
+    });
+
+    function renderNotes(notes) {
+      const section  = document.getElementById('notes-section');
+      const listEl   = document.getElementById('note-list');
+      const countEl  = document.getElementById('note-count');
+
+      if (!notes || !notes.length) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      countEl.textContent = notes.length === 1 ? '1 note' : `${notes.length} notes`;
+
+      listEl.innerHTML = notes.map(n => {
+        const isUrl = n.note_type === 'url';
+        const preview = isUrl ? buildPreview(n) : '';
+        return `
+          <div class="note-item" data-note-id="${n.id}">
+            <div class="note-body">
+              ${isUrl
+                ? `<a class="link-preview" href="${escHtml(n.content)}" target="_blank" rel="noopener noreferrer">${preview}</a>`
+                : `<p class="note-text">${escHtml(n.content)}</p>`
+              }
+              <p class="note-meta">${timeAgo(n.created_at)}</p>
+            </div>
+            <button class="btn btn-danger" style="flex-shrink:0;align-self:flex-start" onclick="deleteNote('${n.id}', this)">Delete</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function buildPreview(n) {
+      const img = n.preview_image
+        ? `<img class="link-preview-img" src="${escHtml(n.preview_image)}" alt="" onerror="this.style.display='none'">`
+        : '';
+      const domain = n.preview_domain ? `<p class="link-preview-domain">${escHtml(n.preview_domain)}</p>` : '';
+      const title  = n.preview_title  ? `<p class="link-preview-title">${escHtml(n.preview_title)}</p>` : `<p class="link-preview-title">${escHtml(n.content)}</p>`;
+      const desc   = n.preview_description ? `<p class="link-preview-desc">${escHtml(n.preview_description)}</p>` : '';
+      return `${img}<div class="link-preview-body">${domain}${title}${desc}</div>`;
+    }
+
+    function timeAgo(ts) {
+      const diff = Math.floor(Date.now() / 1000 - ts);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      return `${Math.floor(diff / 86400)}d ago`;
+    }
+
+    async function deleteNote(noteId, btn) {
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/slugs/${SLUG}/notes/${noteId}`, {method: 'DELETE'});
+        if (res.ok || res.status === 204) await refreshFiles();
+      } catch {
+        btn.disabled = false;
       }
     }
 

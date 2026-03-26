@@ -219,3 +219,123 @@ label {
   border-top: 1px solid var(--border);
   margin: 1.5rem 0;
 }
+
+.media-embed {
+  margin-top: 0.6rem;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.media-embed img {
+  display: block;
+  max-width: 100%;
+  max-height: 480px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.media-embed video {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  border-radius: 7px;
+}
+
+.media-embed-video {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-embed-video:empty::after {
+  content: '▶';
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+.note-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.note-item:last-child { border-bottom: none; }
+
+.note-body { flex: 1; min-width: 0; }
+
+.note-text {
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.note-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.3rem;
+}
+
+.link-preview {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  padding: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+}
+
+.link-preview:hover { border-left-color: var(--accent-hover); }
+
+.link-preview-img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 5px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.link-preview-body { flex: 1; min-width: 0; }
+
+.link-preview-domain {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-preview-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-preview-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -44,6 +44,8 @@ resource "aws_iam_role_policy" "lambda" {
           aws_dynamodb_table.slugs.arn,
           aws_dynamodb_table.files.arn,
           "${aws_dynamodb_table.files.arn}/index/*",
+          aws_dynamodb_table.notes.arn,
+          "${aws_dynamodb_table.notes.arn}/index/*",
         ]
       },
       {

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     dynamodb_table_tokens: str = "sh4r3d-tokens"
     dynamodb_table_slugs: str = "sh4r3d-slugs"
     dynamodb_table_files: str = "sh4r3d-files"
+    dynamodb_table_notes: str = "sh4r3d-notes"
 
     # Local dev only
     host: str = "0.0.0.0"

@@ -36,12 +36,13 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      SECRET_KEY            = var.secret_key
-      BETA_MODE             = var.beta_mode
-      S3_BUCKET             = aws_s3_bucket.main.id
-      DYNAMODB_TABLE_TOKENS = aws_dynamodb_table.tokens.name
-      DYNAMODB_TABLE_SLUGS  = aws_dynamodb_table.slugs.name
-      DYNAMODB_TABLE_FILES  = aws_dynamodb_table.files.name
+      SECRET_KEY             = var.secret_key
+      BETA_MODE              = var.beta_mode
+      S3_BUCKET              = aws_s3_bucket.main.id
+      DYNAMODB_TABLE_TOKENS  = aws_dynamodb_table.tokens.name
+      DYNAMODB_TABLE_SLUGS   = aws_dynamodb_table.slugs.name
+      DYNAMODB_TABLE_FILES   = aws_dynamodb_table.files.name
+      DYNAMODB_TABLE_NOTES   = aws_dynamodb_table.notes.name
     }
   }
 
@@ -86,10 +87,11 @@ resource "aws_lambda_function" "cleanup" {
 
   environment {
     variables = {
-      S3_BUCKET             = aws_s3_bucket.main.id
-      DYNAMODB_TABLE_TOKENS = aws_dynamodb_table.tokens.name
-      DYNAMODB_TABLE_SLUGS  = aws_dynamodb_table.slugs.name
-      DYNAMODB_TABLE_FILES  = aws_dynamodb_table.files.name
+      S3_BUCKET              = aws_s3_bucket.main.id
+      DYNAMODB_TABLE_TOKENS  = aws_dynamodb_table.tokens.name
+      DYNAMODB_TABLE_SLUGS   = aws_dynamodb_table.slugs.name
+      DYNAMODB_TABLE_FILES   = aws_dynamodb_table.files.name
+      DYNAMODB_TABLE_NOTES   = aws_dynamodb_table.notes.name
     }
   }
 

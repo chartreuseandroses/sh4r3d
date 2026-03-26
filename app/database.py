@@ -1,5 +1,6 @@
-"""DynamoDB data layer — replaces the aiosqlite SQLite layer."""
+"""DynamoDB data layer."""
 import time
+import uuid
 from decimal import Decimal
 
 import boto3
@@ -29,6 +30,10 @@ def _slugs():
 
 def _files():
     return _db().Table(settings.dynamodb_table_files)
+
+
+def _notes():
+    return _db().Table(settings.dynamodb_table_notes)
 
 
 def _n(v) -> Decimal:
@@ -216,6 +221,62 @@ def collect_expired_files() -> list[dict]:
     """Return all file records with expires_at < now (for cleanup Lambda)."""
     now = time.time()
     resp = _files().scan(FilterExpression=Attr("expires_at").lt(_n(now)))
+    return resp.get("Items", [])
+
+
+# ---------------------------------------------------------------------------
+# Note queries
+# ---------------------------------------------------------------------------
+
+def insert_note(
+    slug: str,
+    content: str,
+    note_type: str,
+    preview: dict,
+    expires_at: float,
+) -> dict:
+    now = time.time()
+    note_id = str(uuid.uuid4())
+    item: dict = {
+        "note_id": note_id,
+        "slug": slug,
+        "content": content,
+        "note_type": note_type,
+        "created_at": _n(now),
+        "expires_at": _n(expires_at),
+        "ttl": int(expires_at),
+    }
+    for key in ("title", "description", "image", "domain"):
+        if preview.get(key):
+            item[f"preview_{key}"] = preview[key]
+    _notes().put_item(Item=item)
+    return item
+
+
+def list_notes(slug: str) -> list[dict]:
+    resp = _notes().query(
+        IndexName="slug-index",
+        KeyConditionExpression=Key("slug").eq(slug),
+    )
+    items = resp.get("Items", [])
+    return sorted(items, key=lambda x: float(x.get("created_at", 0)))
+
+
+def get_note_record(note_id: str, slug: str) -> dict | None:
+    resp = _notes().get_item(Key={"note_id": note_id})
+    item = resp.get("Item")
+    if item and item.get("slug") == slug:
+        return item
+    return None
+
+
+def delete_note_record(note_id: str) -> None:
+    _notes().delete_item(Key={"note_id": note_id})
+
+
+def collect_expired_notes() -> list[dict]:
+    now = time.time()
+    resp = _notes().scan(FilterExpression=Attr("expires_at").lt(_n(now)))
     return resp.get("Items", [])
 
 

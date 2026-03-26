@@ -2,6 +2,7 @@ from fastapi import HTTPException
 
 from app import database as db_helpers
 from app.models import FileInfo, SlugInfo
+from app.services.note_service import list_notes
 
 
 def create_slug(slug: str) -> SlugInfo:
@@ -12,6 +13,7 @@ def create_slug(slug: str) -> SlugInfo:
         expires_at=float(row["expires_at"]),
         storage_used_bytes=0,
         files=[],
+        notes=[],
     )
 
 
@@ -40,4 +42,5 @@ def get_slug_info(slug: str) -> SlugInfo:
         expires_at=float(row["expires_at"]),
         storage_used_bytes=storage_used,
         files=files,
+        notes=list_notes(slug),
     )

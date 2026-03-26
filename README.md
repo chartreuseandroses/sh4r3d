@@ -1,6 +1,6 @@
 # sh4r3d
 
-Instant, temporary file sharing. Pick a short slug, get a shareable link. Anyone with the link can upload and download files for 24 hours — then everything is deleted automatically.
+Instant, temporary file and note sharing. Pick a short slug, get a shareable link. Anyone with the link can upload files, share text snippets, and paste URLs (with automatic link previews) for 24 hours — then everything is deleted automatically.
 
 Live at **[sh4r3d.com](https://sh4r3d.com)**
 
@@ -13,14 +13,16 @@ Browser
   └─► CloudFront (HTTPS, sh4r3d.com)
         ├─ /          → S3 (static HTML/CSS)
         └─ /api/*     → API Gateway → Lambda (FastAPI)
-                                        ├─ DynamoDB  (slugs, files, tokens)
+                                        ├─ DynamoDB  (slugs, files, notes, tokens)
                                         └─ S3        (file storage, presigned URLs)
 
-EventBridge (every 5 min) → Cleanup Lambda → delete expired files + slugs
+EventBridge (every 5 min) → Cleanup Lambda → delete expired files, notes + slugs
 ```
 
 - Files up to 500 MB upload directly from the browser to S3 via a presigned PUT URL — they never pass through Lambda.
 - Downloads are a 302 redirect to a presigned S3 GET URL.
+- Uploaded images and videos render as inline previews in the browser.
+- Notes store plain text or URLs. URL notes fetch Open Graph metadata server-side and display a link preview card.
 - Everything expires after 24 hours. DynamoDB TTL and the cleanup Lambda both handle deletion independently.
 
 ---
@@ -38,12 +40,13 @@ app/                    Python backend (FastAPI)
   services/
     slug_service.py     Slug business logic
     file_service.py     S3 presigned URL generation
+    note_service.py     Note creation + URL preview fetching (OG tags)
     cleanup_service.py  Cleanup Lambda handler
 
 static/                 Static frontend (served from S3 via CloudFront)
   index.html            Slug creation page
   auth.html             Beta token login page
-  share.html            File upload/download page
+  share.html            File upload/download + notes page
   privacy.html          Privacy policy
   style.css             Shared styles
   robots.txt            Search engine directives
@@ -52,14 +55,14 @@ terraform/              Infrastructure as code (AWS)
   main.tf               Provider config
   variables.tf          Input variables
   s3.tf                 S3 bucket, CORS, lifecycle, static file objects
-  dynamodb.tf           3 DynamoDB tables
+  dynamodb.tf           4 DynamoDB tables (tokens, slugs, files, notes)
   lambda.tf             Lambda functions + build steps
   apigateway.tf         HTTP API Gateway
   cloudfront.tf         CloudFront distribution + URL rewriting function
   acm.tf                ACM TLS certificate (us-east-1)
   eventbridge.tf        Scheduled cleanup trigger
   iam.tf                Lambda execution role + policy
-  outputs.tf            CloudFront URL, API Gateway URL, ACM validation records
+  outputs.tf            CloudFront URL, distribution ID, API Gateway URL, ACM validation records
   tests/unit.tftest.hcl Terraform unit tests (mock providers)
 
 tests/                  Python unit tests (pytest + moto)
@@ -115,6 +118,8 @@ Once the certificate validates, Terraform will complete. The app is live at `sh4
 .\deploy.ps1
 ```
 
+`deploy.ps1` runs `terraform apply` and then automatically invalidates the CloudFront cache so static file changes are live immediately.
+
 ### Makefile (Linux / macOS / Git Bash)
 
 ```bash
@@ -143,6 +148,14 @@ Requires AWS credentials and the same environment variables used by the Lambda (
 ---
 
 ## Running tests
+
+### All tests (PowerShell)
+
+```powershell
+.\test.ps1
+```
+
+Runs Python unit tests then Terraform unit tests. Stops on first failure.
 
 ### Python unit tests
 
@@ -183,4 +196,4 @@ pytest tests/integration/ -v
 
 ## Privacy
 
-Files are deleted automatically after 24 hours. The operator does not examine uploaded content and does not track users. See [sh4r3d.com/privacy](https://sh4r3d.com/privacy) for the full policy.
+Files and notes are deleted automatically after 24 hours. The operator does not examine uploaded content and does not track users. See [sh4r3d.com/privacy](https://sh4r3d.com/privacy) for the full policy.

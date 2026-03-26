@@ -11,6 +11,7 @@ resource "aws_cloudfront_function" "url_rewrite" {
 
       // Pass through known static assets unchanged
       if (uri === '/style.css' ||
+          uri === '/favicon.png' ||
           uri === '/index.html' ||
           uri === '/auth.html' ||
           uri === '/share.html' ||

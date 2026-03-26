@@ -3,6 +3,11 @@ output "cloudfront_url" {
   value       = "https://${aws_cloudfront_distribution.main.domain_name}"
 }
 
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID, used for cache invalidations."
+  value       = aws_cloudfront_distribution.main.id
+}
+
 output "acm_dns_validation_records" {
   description = "Add these CNAME records to Cloudflare DNS to validate the ACM certificate."
   value = {

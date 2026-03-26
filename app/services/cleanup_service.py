@@ -31,11 +31,24 @@ def cleanup_expired() -> None:
             except Exception:
                 logger.exception("Failed to delete file record %s", file_id)
 
-    # Belt-and-suspenders: also delete expired slug records (DynamoDB TTL handles this too)
+    # Belt-and-suspenders: also delete expired notes and slug records
+    expired_notes = db_helpers.collect_expired_notes()
+    notes_deleted = 0
+    for record in expired_notes:
+        note_id = record.get("note_id")
+        if note_id:
+            try:
+                db_helpers.delete_note_record(note_id)
+                notes_deleted += 1
+            except Exception:
+                logger.exception("Failed to delete note record %s", note_id)
+
     db_helpers.delete_expired_slugs()
 
     if deleted:
         logger.info("Cleanup: removed %d expired file(s).", deleted)
+    if notes_deleted:
+        logger.info("Cleanup: removed %d expired note(s).", notes_deleted)
 
 
 def lambda_handler(event, context):

@@ -28,12 +28,25 @@ class FileInfo(BaseModel):
     md5: str | None = None
 
 
+class NoteInfo(BaseModel):
+    id: str
+    content: str
+    note_type: str  # "text" or "url"
+    created_at: float
+    expires_at: float
+    preview_title: str | None = None
+    preview_description: str | None = None
+    preview_image: str | None = None
+    preview_domain: str | None = None
+
+
 class SlugInfo(BaseModel):
     slug: str
     created_at: float
     expires_at: float
     storage_used_bytes: int
     files: list[FileInfo]
+    notes: list[NoteInfo] = []
 
 
 class AuthRequest(BaseModel):

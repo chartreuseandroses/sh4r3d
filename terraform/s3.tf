@@ -141,3 +141,11 @@ resource "aws_s3_object" "robots_txt" {
   content_type = "text/plain"
   etag         = filemd5("${path.module}/../static/robots.txt")
 }
+
+resource "aws_s3_object" "favicon" {
+  bucket       = aws_s3_bucket.main.id
+  key          = "favicon.png"
+  source       = "${path.module}/../static/favicon.png"
+  content_type = "image/png"
+  etag         = filemd5("${path.module}/../static/favicon.png")
+}

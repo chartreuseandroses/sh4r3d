@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, field_validator
 
 from app import database as db_helpers
 from app.config import settings
-from app.models import AuthRequest, FileInfo, PresignRequest, PresignResponse, SlugCreate, SlugInfo
+from app.models import AuthRequest, FileInfo, NoteInfo, PresignRequest, PresignResponse, SlugCreate, SlugInfo
 from app.services import file_service, slug_service
+from app.services.note_service import create_note, delete_note
 
 router = APIRouter()
 
@@ -81,11 +83,13 @@ def confirm_upload(
 
 
 @router.get("/slugs/{slug}/files/{file_id}/download")
-def download_file(slug: str, file_id: str, _=Depends(require_api_auth)):
+def download_file(slug: str, file_id: str, direct: bool = False, _=Depends(require_api_auth)):
     slug_row = db_helpers.get_slug_row(slug)
     if not slug_row:
         raise HTTPException(status_code=404, detail="Slug not found or expired.")
     url = file_service.get_download_url(file_id, slug)
+    if direct:
+        return {"url": url}
     return RedirectResponse(url=url, status_code=302)
 
 
@@ -95,3 +99,39 @@ def delete_file(slug: str, file_id: str, _=Depends(require_api_auth)):
     if not slug_row:
         raise HTTPException(status_code=404, detail="Slug not found or expired.")
     file_service.delete_file(file_id, slug)
+
+
+# ---------------------------------------------------------------------------
+# Note endpoints
+# ---------------------------------------------------------------------------
+
+class NoteCreate(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Content cannot be empty.")
+        if len(v) > 10000:
+            raise ValueError("Content too long (max 10,000 characters).")
+        return v
+
+
+@router.post("/slugs/{slug}/notes", status_code=201)
+def create_note_endpoint(
+    slug: str, body: NoteCreate, _=Depends(require_api_auth)
+) -> NoteInfo:
+    slug_row = db_helpers.get_slug_row(slug)
+    if not slug_row:
+        raise HTTPException(status_code=404, detail="Slug not found or expired.")
+    return create_note(slug_row, body.content)
+
+
+@router.delete("/slugs/{slug}/notes/{note_id}", status_code=204)
+def delete_note_endpoint(slug: str, note_id: str, _=Depends(require_api_auth)):
+    slug_row = db_helpers.get_slug_row(slug)
+    if not slug_row:
+        raise HTTPException(status_code=404, detail="Slug not found or expired.")
+    delete_note(note_id, slug)
