@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="/style.css">
+  <script src="/qrcode.min.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -23,6 +24,11 @@
         <input class="input" type="text" id="share-url" readonly style="flex:1;cursor:pointer;color:var(--accent)">
         <button class="btn btn-ghost" id="copy-btn" onclick="copyLink()">Copy</button>
       </div>
+
+      <details id="qr-details" style="margin-top:0.75rem">
+        <summary style="cursor:pointer;user-select:none;font-size:0.875rem;color:var(--accent);list-style:none">Show QR code</summary>
+        <div id="qr-code" style="margin-top:0.75rem;display:inline-block"></div>
+      </details>
     </div>
 
     <div class="card" style="margin-bottom:1.25rem">
@@ -130,9 +136,19 @@
         return;
       }
 
+      const shareUrl = window.location.origin + '/' + SLUG;
       document.getElementById('slug-title').textContent = SLUG;
-      document.getElementById('share-url').value = window.location.href;
+      document.getElementById('share-url').value = shareUrl;
       document.title = `sh4r3d — ${SLUG}`;
+
+      if (new URLSearchParams(window.location.search).get('copy') === '1') {
+        history.replaceState(null, '', '/' + SLUG);
+        navigator.clipboard.writeText(shareUrl).then(function() {
+          const btn = document.getElementById('copy-btn');
+          btn.textContent = 'Copied!';
+          setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+        }).catch(function() {});
+      }
 
       await refreshFiles();
 
@@ -165,11 +181,30 @@
 
     function updateExpiry() {
       if (!EXPIRES) return;
-      const diff = Math.max(0, EXPIRES - Date.now() / 1000);
-      const h = Math.floor(diff / 3600);
-      const m = Math.floor((diff % 3600) / 60);
+      const diff = EXPIRES - Date.now() / 1000;
       const el = document.getElementById('expiry-text');
-      el.textContent = diff === 0 ? 'Expired' : `Expires in ${h}h ${m}m`;
+      const exp = new Date(EXPIRES * 1000);
+      const now = new Date();
+      const timeStr = exp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      const dayStr = exp.toDateString() === now.toDateString()
+        ? 'today'
+        : exp.toDateString() === new Date(now.getTime() + 86400000).toDateString()
+        ? 'tomorrow'
+        : exp.toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'});
+      if (diff < 3600) {
+        const m = Math.floor(diff / 60);
+        const s = Math.floor(diff % 60);
+        el.textContent = 'Expires ' + dayStr + ' at ' + timeStr + ' (' + m + 'm ' + s + 's)';
+      } else {
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        el.textContent = 'Expires ' + dayStr + ' at ' + timeStr + ' (' + h + 'h ' + m + 'm)';
+      }
+    }
+
+    function scheduleExpiryUpdate() {
+      const delay = (EXPIRES - Date.now() / 1000) < 3600 ? 5000 : 60000;
+      setTimeout(function() { updateExpiry(); scheduleExpiryUpdate(); }, delay);
     }
 
     function fmtBytes(b) {
@@ -273,7 +308,7 @@
         if (EXPIRES === null) {
           EXPIRES = data.expires_at;
           updateExpiry();
-          setInterval(updateExpiry, 60000);
+          scheduleExpiryUpdate();
         }
 
         // Only re-render if data changed — avoids destroying <video> elements mid-playback
@@ -532,6 +567,17 @@
       const files = Array.from(fileInput.files);
       if (files.length) uploadFiles(files);
       fileInput.value = '';
+    });
+
+    document.getElementById('qr-details').addEventListener('toggle', function() {
+      if (this.open && !this.dataset.ready) {
+        this.dataset.ready = '1';
+        new QRCode(document.getElementById('qr-code'), {
+          text: window.location.origin + '/' + SLUG,
+          width: 180,
+          height: 180,
+        });
+      }
     });
 
     init();

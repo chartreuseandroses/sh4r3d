@@ -27,6 +27,7 @@
         <p class="field-hint" id="slug-hint">Lowercase letters, numbers, and hyphens. 3–64 characters.</p>
         <p class="field-error" id="slug-error"></p>
       </div>
+      <button class="btn btn-ghost" id="shuffle-btn" type="button">↻ Try another</button>
       <button class="btn btn-primary" id="create-btn" disabled>Create link</button>
     </div>
   </div>
@@ -44,12 +45,38 @@
 <script>
   const SLUG_RE = /^[a-z0-9][a-z0-9\-]{1,62}[a-z0-9]$/;
 
-  const slugInput = document.getElementById("slug-input");
-  const createBtn = document.getElementById("create-btn");
-  const slugError = document.getElementById("slug-error");
-  const slugHint  = document.getElementById("slug-hint");
-  const preview   = document.getElementById("link-preview");
-  const formError = document.getElementById("form-error");
+  const slugInput  = document.getElementById("slug-input");
+  const createBtn  = document.getElementById("create-btn");
+  const shuffleBtn = document.getElementById("shuffle-btn");
+  const slugError  = document.getElementById("slug-error");
+  const slugHint   = document.getElementById("slug-hint");
+  const preview    = document.getElementById("link-preview");
+  const formError  = document.getElementById("form-error");
+
+  let WORDS = [];
+
+  async function loadWords() {
+    try {
+      const res = await fetch("/words.json");
+      WORDS = await res.json();
+      shuffleSlug();
+    } catch (_) {}
+  }
+
+  function randomSlug() {
+    const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)];
+    const w1 = pick(), w2 = pick();
+    const slug = w1 + "-" + w2;
+    return slug.length < 8 ? slug + "-" + pick() : slug;
+  }
+
+  function shuffleSlug() {
+    if (!WORDS.length) return;
+    slugInput.value = randomSlug();
+    slugInput.dispatchEvent(new Event("input"));
+  }
+
+  shuffleBtn.addEventListener("click", shuffleSlug);
 
   function validateSlug(value) {
     if (!value) return null;
@@ -97,7 +124,7 @@
         body: JSON.stringify({slug}),
       });
       if (res.ok) {
-        window.location.href = `/share/${slug}`;
+        window.location.href = `/share/${slug}?copy=1`;
         return;
       }
       const data = await res.json();
@@ -119,5 +146,7 @@
   slugInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !createBtn.disabled) createBtn.click();
   });
+
+  loadWords();
 </script>
 {% endblock %}

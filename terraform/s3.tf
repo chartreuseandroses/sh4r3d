@@ -149,3 +149,19 @@ resource "aws_s3_object" "favicon" {
   content_type = "image/png"
   etag         = filemd5("${path.module}/../static/favicon.png")
 }
+
+resource "aws_s3_object" "qrcode_js" {
+  bucket       = aws_s3_bucket.main.id
+  key          = "qrcode.min.js"
+  source       = "${path.module}/../static/qrcode.min.js"
+  content_type = "application/javascript"
+  etag         = filemd5("${path.module}/../static/qrcode.min.js")
+}
+
+resource "aws_s3_object" "words_json" {
+  bucket       = aws_s3_bucket.main.id
+  key          = "words.json"
+  source       = "${path.module}/../static/words.json"
+  content_type = "application/json"
+  etag         = filemd5("${path.module}/../static/words.json")
+}

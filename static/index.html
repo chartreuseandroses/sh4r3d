@@ -39,6 +39,7 @@
 
       <div style="margin-top:0.75rem;display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" id="create-btn" disabled onclick="createSlug()">Create link</button>
+        <button class="btn btn-ghost" id="shuffle-btn" type="button" onclick="shuffleSlug()">↻ Try another</button>
         <span id="preview-url" style="font-size:0.85rem;color:var(--muted)"></span>
       </div>
 
@@ -75,6 +76,29 @@
     const slugError = document.getElementById('slug-error');
     const previewUrl = document.getElementById('preview-url');
 
+    let WORDS = [];
+
+    async function loadWords() {
+      try {
+        const res = await fetch('/words.json');
+        WORDS = await res.json();
+        shuffleSlug();
+      } catch (_) {}
+    }
+
+    function randomSlug() {
+      const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)];
+      const w1 = pick(), w2 = pick();
+      const slug = w1 + '-' + w2;
+      return slug.length < 8 ? slug + '-' + pick() : slug;
+    }
+
+    function shuffleSlug() {
+      if (!WORDS.length) return;
+      slugInput.value = randomSlug();
+      slugInput.dispatchEvent(new Event('input'));
+    }
+
     slugInput.addEventListener('input', () => {
       const val = slugInput.value.trim();
       if (!val) {
@@ -102,6 +126,8 @@
       if (e.key === 'Enter' && !createBtn.disabled) createSlug();
     });
 
+    loadWords();
+
     async function createSlug() {
       const slug = slugInput.value.trim();
       createBtn.disabled = true;
@@ -114,7 +140,7 @@
           body: JSON.stringify({slug}),
         });
         if (res.status === 201) {
-          window.location.href = `/$${slug}`;
+          window.location.href = '/' + slug + '?copy=1';
         } else {
           const body = await res.json().catch(() => ({}));
           const errEl = document.getElementById('create-error');

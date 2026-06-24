@@ -25,14 +25,15 @@ data "archive_file" "api" {
 }
 
 resource "aws_lambda_function" "api" {
-  function_name    = "${var.app_name}-api"
-  filename         = data.archive_file.api.output_path
-  source_code_hash = data.archive_file.api.output_base64sha256
-  role             = aws_iam_role.api_lambda.arn
-  handler          = "app.lambda_handler.handler"
-  runtime          = "python3.12"
-  timeout          = 30
-  memory_size      = 512
+  function_name                  = "${var.app_name}-api"
+  filename                       = data.archive_file.api.output_path
+  source_code_hash               = data.archive_file.api.output_base64sha256
+  role                           = aws_iam_role.api_lambda.arn
+  handler                        = "app.lambda_handler.handler"
+  runtime                        = "python3.12"
+  timeout                        = 30
+  memory_size                    = 512
+  reserved_concurrent_executions = 10
 
   environment {
     variables = {
@@ -76,14 +77,15 @@ data "archive_file" "cleanup" {
 }
 
 resource "aws_lambda_function" "cleanup" {
-  function_name    = "${var.app_name}-cleanup"
-  filename         = data.archive_file.cleanup.output_path
-  source_code_hash = data.archive_file.cleanup.output_base64sha256
-  role             = aws_iam_role.cleanup_lambda.arn
-  handler          = "app.services.cleanup_service.lambda_handler"
-  runtime          = "python3.12"
-  timeout          = 300
-  memory_size      = 256
+  function_name                  = "${var.app_name}-cleanup"
+  filename                       = data.archive_file.cleanup.output_path
+  source_code_hash               = data.archive_file.cleanup.output_base64sha256
+  role                           = aws_iam_role.cleanup_lambda.arn
+  handler                        = "app.services.cleanup_service.lambda_handler"
+  runtime                        = "python3.12"
+  timeout                        = 300
+  memory_size                    = 256
+  reserved_concurrent_executions = 10
 
   environment {
     variables = {
