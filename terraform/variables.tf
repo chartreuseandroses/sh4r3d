@@ -26,3 +26,8 @@ variable "domain" {
   description = "Primary domain name for the app (e.g. example.com). CloudFront and ACM will be configured for this domain and www.<domain>."
   type        = string
 }
+
+variable "budget_alert_email" {
+  description = "Email address to receive monthly budget alarm notifications."
+  type        = string
+}
